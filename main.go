@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net"
+	"os"
 	"strings"
 	"time"
 
@@ -12,12 +14,14 @@ import (
 )
 
 var (
-	address *string
-	udp     *bool
+	address  *string
+	filename *string
+	udp      *bool
 )
 
 func init() {
 	address = flag.String("c", "", "server:port to test")
+	filename = flag.String("f", "visualas.dmp", "filename for dumping received Visulas data")
 }
 
 const (
@@ -32,33 +36,8 @@ func convert(txt string) string {
 	return strings.ReplaceAll(txt, "\r", "\r\n")
 }
 
-func read(conn net.Conn) {
+func read(conn net.Conn) []byte {
 	fmt.Printf("---------- read from Silex\n")
-
-	//var buf bytes.Buffer
-	//n, err := io.Copy(&buf, conn)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//txt := string(buf.Bytes())
-
-	//buf := make([]byte, 102400)
-	//tmp := make([]byte, 256)
-	//n := 0
-	//for {
-	//	conn.SetDeadline(time.Now().Add(time.Second * 3))
-	//
-	//	nread, err := conn.Read(tmp)
-	//	if err != nil {
-	//		if err != io.EOF {
-	//			break
-	//		}
-	//		break
-	//	}
-	//	n += nread
-	//	buf = append(buf, tmp[:n]...)
-	//}
-	//txt := string(buf[:n])
 
 	b1 := make([]byte, 1)
 	buf := bytes.Buffer{}
@@ -80,6 +59,8 @@ func read(conn net.Conn) {
 
 	fmt.Printf("%d bytes read\n", buf.Len())
 	fmt.Printf("%s\n", convert(txt))
+
+	return buf.Bytes()
 }
 
 func write(conn net.Conn, txt string) {
@@ -108,7 +89,7 @@ func run() error {
 	write(conn, forum_ready)
 	read(conn)
 	write(conn, receive_ready)
-	read(conn)
+	ioutil.WriteFile(*filename, read(conn), os.ModePerm)
 	write(conn, review_ready)
 
 	return nil

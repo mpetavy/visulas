@@ -98,6 +98,6 @@ func run() error {
 func main() {
 	defer common.Cleanup()
 
-	common.New(&common.App{"visulas", "1.0.0", "2019", "Can connect to server:port", "mpetavy", common.APACHE, "VISULAS query via Silex", false, nil, nil, nil, run, time.Duration(0)}, []string{"c"})
+	common.New(&common.App{"visulas", "1.0.0", "2019", "Can connect to server:port", "mpetavy", common.APACHE, "VISULAS query via Silex", false, nil, nil, run, time.Duration(0)}, []string{"c"})
 	common.Run()
 }

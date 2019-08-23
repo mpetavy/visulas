@@ -4,13 +4,11 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"github.com/mpetavy/common"
 	"io/ioutil"
 	"net"
 	"os"
 	"strings"
-	"time"
-
-	"github.com/mpetavy/common"
 )
 
 var (
@@ -31,6 +29,10 @@ const (
 	review_error  = "A\rREVIEW_ERROR\r\x04"
 	review_ready  = "A\rREVIEW_READY\r\x04"
 )
+
+func init() {
+	common.Init("visulas", "1.0.0", "2019", "Can connect to server:port", "mpetavy", common.APACHE, "VISULAS query via Silex", false, nil, nil, run, 0)
+}
 
 func convert(txt string) string {
 	return strings.ReplaceAll(txt, "\r", "\r\n")
@@ -98,6 +100,5 @@ func run() error {
 func main() {
 	defer common.Cleanup()
 
-	common.New(&common.App{"visulas", "1.0.0", "2019", "Can connect to server:port", "mpetavy", common.APACHE, "VISULAS query via Silex", false, nil, nil, run, time.Duration(0)}, []string{"c"})
-	common.Run()
+	common.Run([]string{"c"})
 }

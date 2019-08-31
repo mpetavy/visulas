@@ -2,24 +2,30 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"flag"
 	"fmt"
-	"github.com/mpetavy/common"
 	"io/ioutil"
 	"net"
 	"os"
 	"strings"
+	"time"
+
+	"github.com/mpetavy/common"
 )
 
 var (
-	address  *string
 	filename *string
-	udp      *bool
+	address  *string
+	timeout  *int
+	useTls   *bool
 )
 
 func init() {
-	address = flag.String("c", "", "server:port to test")
 	filename = flag.String("f", "visualas.dmp", "filename for dumping received Visulas data")
+	address = flag.String("c", "", "socket address to read from")
+	timeout = flag.Int("t", 0, "timeout")
+	useTls = flag.Bool("tls", false, "use tls")
 }
 
 const (
@@ -79,9 +85,28 @@ func write(conn net.Conn, txt string) {
 }
 
 func run() error {
-	conn, err := net.Dial("tcp", *address)
-	if err != nil {
-		return err
+	fmt.Printf("dial\n")
+
+	var conn net.Conn
+	var err error
+
+	if *useTls {
+		config := &tls.Config{
+			InsecureSkipVerify: true,
+		}
+		conn, err = tls.Dial("tcp4", *address, config)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		conn, err = net.Dial("tcp4", *address)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	if *timeout > 0 {
+		common.Error(conn.SetDeadline(time.Now().Add(time.Second * time.Duration(*timeout))))
 	}
 
 	defer conn.Close()

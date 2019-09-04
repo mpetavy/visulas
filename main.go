@@ -44,8 +44,8 @@ func convert(txt string) string {
 	return strings.ReplaceAll(txt, "\r", "\r\n")
 }
 
-func read(conn net.Conn) []byte {
-	fmt.Printf("---------- read from Silex\n")
+func read(conn net.Conn, expect string) []byte {
+	fmt.Printf("---------- read from Silex: %+q\n", expect)
 
 	b1 := make([]byte, 1)
 	buf := bytes.Buffer{}
@@ -72,7 +72,7 @@ func read(conn net.Conn) []byte {
 }
 
 func write(conn net.Conn, txt string) {
-	fmt.Printf("---------- write to Silex\n")
+	fmt.Printf("---------- write to Silex: %+q\n", txt)
 
 	var err error
 
@@ -114,9 +114,9 @@ func run() error {
 	fmt.Printf("%s connected successfully\n", *address)
 
 	write(conn, forum_ready)
-	read(conn)
+	read(conn, visulas_ready)
 	write(conn, receive_ready)
-	ioutil.WriteFile(*filename, read(conn), os.ModePerm)
+	ioutil.WriteFile(*filename, read(conn, "data"), os.ModePerm)
 	write(conn, review_ready)
 
 	return nil

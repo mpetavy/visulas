@@ -25,8 +25,8 @@ var (
 func init() {
 	filename = flag.String("f", "visualas.dmp", "filename for dumping received Visulas data")
 	address = flag.String("c", "", "socket address to read from")
-	readTimeout = flag.Int("rt", 1000, "readTimeout")
-	stepTimeout = flag.Int("st", 200, "stepTimeout")
+	readTimeout = flag.Int("rt", 3000, "readTimeout")
+	stepTimeout = flag.Int("st", 250, "stepTimeout")
 	useTls = flag.Bool("tls", false, "use tls")
 }
 
@@ -119,7 +119,9 @@ func run() error {
 		}
 	}
 
-	defer common.Error(conn.Close())
+	defer func() {
+		common.Error(conn.Close())
+	}()
 
 	fmt.Printf("%s connected successfully\n", *address)
 

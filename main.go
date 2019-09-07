@@ -15,16 +15,18 @@ import (
 )
 
 var (
-	filename *string
-	address  *string
-	timeout  *int
-	useTls   *bool
+	filename    *string
+	address     *string
+	readTimeout *int
+	stepTimeout *int
+	useTls      *bool
 )
 
 func init() {
 	filename = flag.String("f", "visualas.dmp", "filename for dumping received Visulas data")
 	address = flag.String("c", "", "socket address to read from")
-	timeout = flag.Int("t", 0, "timeout")
+	readTimeout = flag.Int("rt", 1000, "readTimeout")
+	stepTimeout = flag.Int("st", 200, "stepTimeout")
 	useTls = flag.Bool("tls", false, "use tls")
 }
 
@@ -45,6 +47,14 @@ func convert(txt string) string {
 }
 
 func read(conn net.Conn, expect string) []byte {
+	if *stepTimeout > 0 {
+		time.Sleep(time.Duration(*stepTimeout) * time.Millisecond)
+	}
+
+	if *readTimeout > 0 {
+		common.Error(conn.SetDeadline(common.DeadlineByMsec(*readTimeout)))
+	}
+
 	fmt.Printf("---------- read from Silex: %+q\n", expect)
 
 	b1 := make([]byte, 1)
@@ -72,6 +82,10 @@ func read(conn net.Conn, expect string) []byte {
 }
 
 func write(conn net.Conn, txt string) {
+	if *stepTimeout > 0 {
+		time.Sleep(time.Duration(*stepTimeout) * time.Millisecond)
+	}
+
 	fmt.Printf("---------- write to Silex: %+q\n", txt)
 
 	var err error
@@ -105,18 +119,14 @@ func run() error {
 		}
 	}
 
-	if *timeout > 0 {
-		common.Error(conn.SetDeadline(time.Now().Add(time.Second * time.Duration(*timeout))))
-	}
-
-	defer conn.Close()
+	defer common.Error(conn.Close())
 
 	fmt.Printf("%s connected successfully\n", *address)
 
 	write(conn, forum_ready)
 	read(conn, visulas_ready)
 	write(conn, receive_ready)
-	ioutil.WriteFile(*filename, read(conn, "data"), os.ModePerm)
+	common.Error(ioutil.WriteFile(*filename, read(conn, "data"), os.ModePerm))
 	write(conn, review_ready)
 
 	return nil

@@ -38,7 +38,7 @@ const (
 )
 
 func init() {
-	common.Init("visulas", "1.0.0", "2019", "Can connect to server:port", "mpetavy", common.APACHE, "VISULAS query via Silex", false, nil, nil, run, 0)
+	common.Init("1.0.0", "2019", "VISULAS query via Silex", "mpetavy", common.APACHE, false, nil, nil, run, 0)
 }
 
 func convert(txt string) string {

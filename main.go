@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
-	"os"
 	"strings"
 	"time"
 
@@ -128,7 +127,7 @@ func run() error {
 	write(conn, forum_ready)
 	read(conn, visulas_ready)
 	write(conn, receive_ready)
-	common.Error(ioutil.WriteFile(*filename, read(conn, "data"), os.ModePerm))
+	common.Error(ioutil.WriteFile(*filename, read(conn, "data"), common.FileFileMode))
 	write(conn, review_ready)
 
 	return nil

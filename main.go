@@ -107,12 +107,12 @@ func run() error {
 		config := &tls.Config{
 			InsecureSkipVerify: true,
 		}
-		conn, err = tls.Dial("tcp4", *address, config)
+		conn, err = tls.Dial("tcp", *address, config)
 		if err != nil {
 			panic(err)
 		}
 	} else {
-		conn, err = net.Dial("tcp4", *address)
+		conn, err = net.Dial("tcp", *address)
 		if err != nil {
 			panic(err)
 		}

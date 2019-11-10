@@ -127,7 +127,7 @@ func run() error {
 	write(conn, forum_ready)
 	read(conn, visulas_ready)
 	write(conn, receive_ready)
-	common.Error(ioutil.WriteFile(*filename, read(conn, "data"), common.FileFileMode))
+	common.Error(ioutil.WriteFile(*filename, read(conn, "data"), common.DefaultFileMode))
 	write(conn, review_ready)
 
 	return nil

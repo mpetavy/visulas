@@ -38,7 +38,7 @@ const (
 )
 
 func init() {
-	common.Init("1.0.0", "2019", "VISULAS query via Silex", "mpetavy", common.APACHE, false, nil, nil, run, 0)
+	common.Init("1.0.0", "2019", "VISULAS query via Silex", "mpetavy", fmt.Sprintf("https://github.com/mpetavy/%s", common.Title()), common.APACHE, false, nil, nil, run, 0)
 }
 
 func convert(txt string) string {

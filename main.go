@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"strings"
 	"time"
 
@@ -33,8 +32,8 @@ const (
 	forum_ready   = "A\rFORUM_READY\r\x04"
 	visulas_ready = "A\rVISULAS_READY\r\x04"
 	receive_ready = "A\rFORUM_RECEIVE_READY\r\x04"
-	review_error  = "A\rREVIEW_ERROR\r\x04"
-	review_ready  = "A\rREVIEW_READY\r\x04"
+	//review_error  = "A\rREVIEW_ERROR\r\x04"
+	review_ready = "A\rREVIEW_READY\r\x04"
 )
 
 func init() {
@@ -45,13 +44,13 @@ func convert(txt string) string {
 	return strings.ReplaceAll(txt, "\r", "\r\n")
 }
 
-func read(conn net.Conn, expect string) []byte {
+func read(conn *common.NetworkConnection, expect string) []byte {
 	if *stepTimeout > 0 {
 		time.Sleep(time.Duration(*stepTimeout) * time.Millisecond)
 	}
 
 	if *readTimeout > 0 {
-		common.Error(conn.SetDeadline(common.DeadlineByMsec(*readTimeout)))
+		common.Error(conn.Socket.SetDeadline(common.DeadlineByMsec(*readTimeout)))
 	}
 
 	fmt.Printf("---------- read from Silex: %+q\n", expect)
@@ -80,7 +79,7 @@ func read(conn net.Conn, expect string) []byte {
 	return buf.Bytes()
 }
 
-func write(conn net.Conn, txt string) {
+func write(conn *common.NetworkConnection, txt string) {
 	if *stepTimeout > 0 {
 		time.Sleep(time.Duration(*stepTimeout) * time.Millisecond)
 	}
@@ -100,22 +99,29 @@ func write(conn net.Conn, txt string) {
 func run() error {
 	fmt.Printf("dial\n")
 
-	var conn net.Conn
-	var err error
+	var tlsConfig *tls.Config
 
 	if *useTls {
-		config := &tls.Config{
-			InsecureSkipVerify: true,
+		var err error
+
+		tlsConfig, err = common.NewTlsConfigFromFlags()
+		if common.Error(err) {
+			return err
 		}
-		conn, err = tls.Dial("tcp", *address, config)
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		conn, err = net.Dial("tcp", *address)
-		if err != nil {
-			panic(err)
-		}
+	}
+
+	client, err := common.NewNetworkClient(*address, tlsConfig)
+	if common.Error(err) {
+		return err
+	}
+
+	defer func() {
+		common.Error(client.Stop())
+	}()
+
+	conn, err := client.Connect()
+	if common.Error(err) {
+		return err
 	}
 
 	defer func() {

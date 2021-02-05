@@ -24,7 +24,7 @@ func init() {
 	filename = flag.String("f", "visualas.dmp", "filename for dumping received Visulas data")
 	address = flag.String("c", "", "socket address to read from")
 	readTimeout = flag.Int("rt", 3000, "readTimeout")
-	stepTimeout = flag.Int("st", 500, "stepTimeout")
+	stepTimeout = flag.Int("st", 1000, "stepTimeout")
 	useTls = flag.Bool("tls", false, "use tls")
 }
 
@@ -46,7 +46,7 @@ func convert(txt string) string {
 
 func read(conn *common.NetworkConnection, expect string) []byte {
 	if *stepTimeout > 0 {
-		time.Sleep(time.Duration(*stepTimeout) * time.Millisecond)
+		time.Sleep(common.MillisecondToDuration(*stepTimeout))
 	}
 
 	if *readTimeout > 0 {
@@ -81,7 +81,7 @@ func read(conn *common.NetworkConnection, expect string) []byte {
 
 func write(conn *common.NetworkConnection, txt string) {
 	if *stepTimeout > 0 {
-		time.Sleep(time.Duration(*stepTimeout) * time.Millisecond)
+		time.Sleep(common.MillisecondToDuration(*stepTimeout))
 	}
 
 	fmt.Printf("---------- write to Silex: %+q\n", txt)

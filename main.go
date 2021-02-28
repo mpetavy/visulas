@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 	"time"
 
@@ -133,7 +133,7 @@ func run() error {
 	write(conn, forum_ready)
 	read(conn, visulas_ready)
 	write(conn, receive_ready)
-	common.Error(ioutil.WriteFile(*filename, read(conn, "data"), common.DefaultFileMode))
+	common.Error(os.WriteFile(*filename, read(conn, "data"), common.DefaultFileMode))
 	write(conn, review_ready)
 
 	return nil

@@ -24,7 +24,7 @@ func init() {
 	filename = flag.String("f", "visualas.dmp", "filename for dumping received Visulas data")
 	address = flag.String("c", "", "socket address to read from")
 	readTimeout = flag.Int("rt", 3000, "readTimeout")
-	stepTimeout = flag.Int("st", 1000, "stepTimeout")
+	stepTimeout = flag.Int("st", 500, "stepTimeout")
 	useTls = flag.Bool("tls", false, "use tls")
 }
 
@@ -53,7 +53,7 @@ func read(conn *common.NetworkConnection, expect string) []byte {
 		common.Error(conn.Socket.SetDeadline(common.DeadlineByMsec(*readTimeout)))
 	}
 
-	fmt.Printf("---------- read from Silex: %+q\n", expect)
+	common.Debug("---------- read from Silex: %+q", expect)
 
 	b1 := make([]byte, 1)
 	buf := bytes.Buffer{}
@@ -73,8 +73,8 @@ func read(conn *common.NetworkConnection, expect string) []byte {
 	}
 	txt := string(buf.Bytes())
 
-	fmt.Printf("%d bytes read\n", buf.Len())
-	fmt.Printf("%s\n", convert(txt))
+	common.Debug("%d bytes read", buf.Len())
+	common.Debug("%s", convert(txt))
 
 	return buf.Bytes()
 }
@@ -84,7 +84,7 @@ func write(conn *common.NetworkConnection, txt string) {
 		time.Sleep(common.MillisecondToDuration(*stepTimeout))
 	}
 
-	fmt.Printf("---------- write to Silex: %+q\n", txt)
+	common.Debug("---------- write to Silex: %+q", txt)
 
 	var err error
 
@@ -92,12 +92,12 @@ func write(conn *common.NetworkConnection, txt string) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("%d bytes written\n", n)
-	fmt.Printf("%s\n", convert(txt))
+	common.Debug("%d bytes written", n)
+	common.Debug("%s", convert(txt))
 }
 
 func run() error {
-	fmt.Printf("dial\n")
+	common.Debug("dial")
 
 	var tlsConfig *tls.Config
 
@@ -128,7 +128,7 @@ func run() error {
 		common.Error(conn.Close())
 	}()
 
-	fmt.Printf("%s connected successfully\n", *address)
+	common.Debug("%s connected successfully", *address)
 
 	write(conn, forum_ready)
 	read(conn, visulas_ready)

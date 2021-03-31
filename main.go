@@ -25,7 +25,7 @@ func init() {
 	filename = flag.String("f", "visualas.dmp", "filename for dumping received Visulas data")
 	address = flag.String("c", "", "socket address to read from")
 	readTimeout = flag.Int("rt", 3000, "readTimeout")
-	stepTimeout = flag.Int("st", 500, "stepTimeout")
+	stepTimeout = flag.Int("st", 1000, "stepTimeout")
 	useTls = flag.Bool("tls", false, "use tls")
 }
 

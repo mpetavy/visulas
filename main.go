@@ -51,7 +51,7 @@ func read(reader io.Reader, expect string) []byte {
 	}
 
 	if *readTimeout > 0 {
-		reader = common.NewTimeoutReader(reader, common.MillisecondToDuration(*readTimeout), false)
+		reader = common.NewTimeoutReader(reader, common.MillisecondToDuration(*readTimeout), true)
 	}
 
 	common.Info("---------- read from Silex: %+q", expect)

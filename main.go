@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -44,22 +45,22 @@ func convert(txt string) string {
 	return strings.ReplaceAll(txt, "\r", "\r\n")
 }
 
-func read(conn *common.NetworkConnection, expect string) []byte {
+func read(reader io.Reader, expect string) []byte {
 	if *stepTimeout > 0 {
 		time.Sleep(common.MillisecondToDuration(*stepTimeout))
 	}
 
 	if *readTimeout > 0 {
-		common.Error(conn.Socket.SetDeadline(common.DeadlineByMsec(*readTimeout)))
+		reader = common.NewTimeoutReader(reader, common.MillisecondToDuration(*readTimeout), false)
 	}
 
-	common.Debug("---------- read from Silex: %+q", expect)
+	common.Info("---------- read from Silex: %+q", expect)
 
 	b1 := make([]byte, 1)
 	buf := bytes.Buffer{}
 
 	for {
-		nread, err := conn.Read(b1)
+		nread, err := reader.Read(b1)
 		if err != nil {
 			panic(err)
 		}
@@ -73,53 +74,55 @@ func read(conn *common.NetworkConnection, expect string) []byte {
 	}
 	txt := string(buf.Bytes())
 
-	common.Debug("%d bytes read", buf.Len())
-	common.Debug("%s", convert(txt))
+	common.Info("%d bytes read", buf.Len())
+	common.Info("%s", convert(txt))
 
 	return buf.Bytes()
 }
 
-func write(conn *common.NetworkConnection, txt string) {
+func write(writer io.Writer, txt string) {
 	if *stepTimeout > 0 {
 		time.Sleep(common.MillisecondToDuration(*stepTimeout))
 	}
 
-	common.Debug("---------- write to Silex: %+q", txt)
+	common.Info("---------- write to Silex: %+q", txt)
 
 	var err error
 
-	n, err := conn.Write([]byte(txt))
+	n, err := writer.Write([]byte(txt))
 	if err != nil {
 		panic(err)
 	}
-	common.Debug("%d bytes written", n)
-	common.Debug("%s", convert(txt))
+	common.Info("%d bytes written", n)
+	common.Info("%s", convert(txt))
 }
 
 func run() error {
-	common.Debug("dial")
-
+	var err error
 	var tlsConfig *tls.Config
 
 	if *useTls {
-		var err error
-
 		tlsConfig, err = common.NewTlsConfigFromFlags()
 		if common.Error(err) {
 			return err
 		}
 	}
 
-	client, err := common.NewNetworkClient(*address, tlsConfig)
+	ep, connector, err := common.NewEndpoint(*address, true, tlsConfig)
+	if common.Error(err) {
+		return err
+	}
+
+	err = ep.Start()
 	if common.Error(err) {
 		return err
 	}
 
 	defer func() {
-		common.Error(client.Stop())
+		common.Error(ep.Stop())
 	}()
 
-	conn, err := client.Connect()
+	conn, err := connector()
 	if common.Error(err) {
 		return err
 	}
@@ -128,7 +131,7 @@ func run() error {
 		common.Error(conn.Close())
 	}()
 
-	common.Debug("%s connected successfully", *address)
+	common.Info("%s connected successfully", *address)
 
 	write(conn, forum_ready)
 	read(conn, visulas_ready)

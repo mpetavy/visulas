@@ -30,9 +30,9 @@ func init() {
 }
 
 const (
-	forum_ready   = "A\rFORUM_READY\r\x04"
-	visulas_ready = "A\rVISULAS_READY\r\x04"
-	receive_ready = "A\rFORUM_RECEIVE_READY\r\x04"
+	forum_ready         = "A\rFORUM_READY\r\x04"
+	visulas_ready       = "A\rVISULAS_READY\r\x04"
+	forum_receive_ready = "A\rFORUM_RECEIVE_READY\r\x04"
 	//review_error  = "A\rREVIEW_ERROR\r\x04"
 	review_ready = "A\rREVIEW_READY\r\x04"
 )
@@ -45,7 +45,7 @@ func convert(txt string) string {
 	return strings.ReplaceAll(txt, "\r", "\r\n")
 }
 
-func read(reader io.Reader, expect string) []byte {
+func read(reader io.Reader) []byte {
 	if *stepTimeout > 0 {
 		time.Sleep(common.MillisecondToDuration(*stepTimeout))
 	}
@@ -54,7 +54,7 @@ func read(reader io.Reader, expect string) []byte {
 		reader = common.NewTimeoutReader(reader, common.MillisecondToDuration(*readTimeout), true)
 	}
 
-	common.Info("---------- read from Silex: %+q", expect)
+	common.Info("---------- read from Silex ...")
 
 	b1 := make([]byte, 1)
 	buf := bytes.Buffer{}
@@ -134,9 +134,23 @@ func run() error {
 	common.Info("%s connected successfully", *address)
 
 	write(conn, forum_ready)
-	read(conn, visulas_ready)
-	write(conn, receive_ready)
-	common.Error(os.WriteFile(*filename, read(conn, "data"), common.DefaultFileMode))
+
+	var ba []byte
+
+	if bytes.Compare(ba, []byte(visulas_ready)) != 0 {
+		write(conn, forum_receive_ready)
+	}
+
+	for {
+		ba = read(conn)
+
+		if bytes.Compare(ba, []byte(visulas_ready)) != 0 {
+			break
+		}
+	}
+
+	common.Error(os.WriteFile(*filename, ba, common.DefaultFileMode))
+
 	write(conn, review_ready)
 
 	return nil

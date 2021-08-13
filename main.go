@@ -217,6 +217,8 @@ func run() error {
 		common.Info("Listen on %s...", *server)
 
 		address = *server
+
+		*loopCount = 9999999
 		*stepTimeout = 0
 	} else {
 		common.Info("Connect %s...", *client)
@@ -238,8 +240,6 @@ func run() error {
 
 	for i := 0; i < *loopCount; i++ {
 		if *server != "" {
-			i--
-
 			if *useKey {
 				common.Info("--------------------")
 				common.Info("Press RETURN to get ready...")

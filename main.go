@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/tls"
 	"encoding/base64"
@@ -24,6 +25,7 @@ var (
 	stepTimeout   *int
 	loopCount     *int
 	useTls        *bool
+	useKey        *bool
 )
 
 const (
@@ -39,6 +41,7 @@ func init() {
 	stepTimeout = flag.Int("st", 1000, "step timeout")
 	loopCount = flag.Int("lc", 1, "loop count")
 	useTls = flag.Bool("tls", false, "use tls")
+	useKey = flag.Bool("key", false, "use tls")
 }
 
 const (
@@ -247,6 +250,12 @@ func run() error {
 
 		if *server != "" {
 			i--
+
+			if *useKey {
+				common.Info("Press RETURN to get ready...")
+				reader := bufio.NewReader(os.Stdin)
+				reader.ReadString('\n')
+			}
 		}
 	}
 

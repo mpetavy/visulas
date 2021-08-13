@@ -3,9 +3,11 @@ package main
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -14,18 +16,28 @@ import (
 )
 
 var (
-	filename    *string
-	address     *string
-	readTimeout *int
-	stepTimeout *int
-	useTls      *bool
+	readFilename  *string
+	writeFilename *string
+	client        *string
+	server        *string
+	readTimeout   *int
+	stepTimeout   *int
+	loopCount     *int
+	useTls        *bool
+)
+
+const (
+	dumpfile = "QQ1WSVNVTEFTNTAwDTEuMA1TdGFuZGFyZCAgICAgICAgICAgICAgICANT0QNMw1TZWxlY3RpdmUgICAgICAgICAgICAgICANLS0gICAgICAgICAgICAgICAgICAgICAgDTAzMTINMDAwNQ0wMDA1DTAwMDUNMDAwMA0wMDAwDTAwMDANMDA1MA0wMDUwDTAwNTANMDAwMA0wMDAwDTAwMDANMDAyNTUNMDAyNTUNMDAyNTUNMDAwMDc5NTYwDTAwMDAwMDAwMDANMg02RUY2QTU5NDg1NzVCREEzRjk1Nzk4NzA4RjU1RkJGOQ0E"
 )
 
 func init() {
-	filename = flag.String("f", "visualas.dmp", "filename for dumping received Visulas data")
-	address = flag.String("c", "", "socket address to read from")
-	readTimeout = flag.Int("rt", 3000, "readTimeout")
-	stepTimeout = flag.Int("st", 1000, "stepTimeout")
+	writeFilename = flag.String("w", "visualas.dmp", "filename for dumping received Visulas data")
+	readFilename = flag.String("r", "visualas.dmp", "filename for sending Visulas data")
+	client = flag.String("c", "", "client socket address to read from")
+	server = flag.String("s", "", "server socket address to listen to")
+	readTimeout = flag.Int("rt", 3000, "read timeout")
+	stepTimeout = flag.Int("st", 1000, "step timeout")
+	loopCount = flag.Int("lc", 1, "loop count")
 	useTls = flag.Bool("tls", false, "use tls")
 }
 
@@ -38,31 +50,35 @@ const (
 )
 
 func init() {
-	common.Init(false, "1.0.0", "", "", "2019", "VISULAS query via Silex", "mpetavy", fmt.Sprintf("https://github.com/mpetavy/%s", common.Title()), common.APACHE, nil, nil, nil, run, 0)
+	common.Init(false, "1.0.0", "", "", "2019", "VISULAS testing tool", "mpetavy", fmt.Sprintf("https://github.com/mpetavy/%s", common.Title()), common.APACHE, nil, nil, nil, run, 0)
 }
 
 func convert(txt string) string {
 	return strings.ReplaceAll(txt, "\r", "\r\n")
 }
 
-func read(reader io.Reader) []byte {
+func read(reader io.Reader) ([]byte, error) {
 	if *stepTimeout > 0 {
 		time.Sleep(common.MillisecondToDuration(*stepTimeout))
 	}
 
-	if *readTimeout > 0 {
+	if *client != "" && *readTimeout > 0 {
 		reader = common.NewTimeoutReader(reader, common.MillisecondToDuration(*readTimeout), true)
 	}
 
-	common.Info("---------- read from Silex ...")
+	if *server != "" {
+		common.Info("--------------------")
+	}
+
+	common.Info("read from...")
 
 	b1 := make([]byte, 1)
 	buf := bytes.Buffer{}
 
 	for {
 		nread, err := reader.Read(b1)
-		if err != nil {
-			panic(err)
+		if common.Error(err) {
+			return nil, err
 		}
 		if nread > 0 {
 			buf.Write(b1)
@@ -72,29 +88,114 @@ func read(reader io.Reader) []byte {
 			}
 		}
 	}
+
 	txt := string(buf.Bytes())
 
-	common.Info("%d bytes read", buf.Len())
-	common.Info("%s", convert(txt))
+	common.Info("%d bytes read: %s", buf.Len(), convert(txt))
 
-	return buf.Bytes()
+	return buf.Bytes(), nil
 }
 
-func write(writer io.Writer, txt string) {
+func write(writer io.Writer, txt string) error {
 	if *stepTimeout > 0 {
 		time.Sleep(common.MillisecondToDuration(*stepTimeout))
 	}
 
-	common.Info("---------- write to Silex: %+q", txt)
+	if *client != "" {
+		common.Info("--------------------")
+	}
+	common.Info("write to: %s...", convert(txt))
 
 	var err error
 
 	n, err := writer.Write([]byte(txt))
-	if err != nil {
-		panic(err)
+	if common.Error(err) {
+		return err
 	}
-	common.Info("%d bytes written", n)
-	common.Info("%s", convert(txt))
+
+	common.Info("%d bytes written: %s", n, convert(txt))
+
+	return nil
+}
+
+func process(connector common.EndpointConnector) error {
+	conn, err := connector()
+	if common.Error(err) {
+		return err
+	}
+
+	defer func() {
+		common.Error(conn.Close())
+	}()
+
+	if *client != "" {
+		write(conn, forum_ready)
+
+		var ba []byte
+
+		if bytes.Compare(ba, []byte(visulas_ready)) != 0 {
+			write(conn, forum_receive_ready)
+		}
+
+		for {
+			ba, err = read(conn)
+			if common.Error(err) {
+				return err
+			}
+
+			if bytes.Compare(ba, []byte(visulas_ready)) != 0 {
+				break
+			}
+		}
+
+		common.Error(os.WriteFile(*writeFilename, ba, common.DefaultFileMode))
+
+		write(conn, review_ready)
+	} else {
+		var fileContent []byte
+		var err error
+
+		if *readFilename != "" {
+			fileContent, err = ioutil.ReadFile(*readFilename)
+			if common.Error(err) {
+				return err
+			}
+		} else {
+			fileContent, err = base64.StdEncoding.DecodeString(dumpfile)
+			if common.Error(err) {
+				return err
+			}
+		}
+
+		ba, err := read(conn)
+		if common.Error(err) {
+			return err
+		}
+
+		if bytes.Compare(ba, []byte(forum_ready)) != 0 {
+			fmt.Errorf("expected %s", convert(forum_ready))
+		}
+
+		write(conn, visulas_ready)
+
+		ba, err = read(conn)
+		if common.Error(err) {
+			return err
+		}
+
+		if bytes.Compare(ba, []byte(forum_receive_ready)) != 0 {
+			fmt.Errorf("expected %s", convert(forum_receive_ready))
+		}
+
+		write(conn, string(fileContent))
+
+		ba, err = read(conn)
+		if common.Error(err) {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func run() error {
@@ -108,7 +209,16 @@ func run() error {
 		}
 	}
 
-	ep, connector, err := common.NewEndpoint(*address, true, tlsConfig)
+	address := *client
+	if address == "" {
+		common.Info("Listen on %s...", *server)
+
+		address = *server
+	} else {
+		common.Info("Connect %s...", *client)
+	}
+
+	ep, connector, err := common.NewEndpoint(address, *client != "", tlsConfig)
 	if common.Error(err) {
 		return err
 	}
@@ -122,36 +232,23 @@ func run() error {
 		common.Error(ep.Stop())
 	}()
 
-	conn, err := connector()
-	if common.Error(err) {
-		return err
-	}
+	for i := 0; i < *loopCount; i++ {
+		common.Info("--------------------")
+		common.Info("#%d", i)
 
-	defer func() {
-		common.Error(conn.Close())
-	}()
+		err := process(connector)
+		if common.Error(err) {
+			return err
+		}
 
-	common.Info("%s connected successfully", *address)
+		if i < *loopCount-1 {
+			time.Sleep(common.MillisecondToDuration(*stepTimeout))
+		}
 
-	write(conn, forum_ready)
-
-	var ba []byte
-
-	if bytes.Compare(ba, []byte(visulas_ready)) != 0 {
-		write(conn, forum_receive_ready)
-	}
-
-	for {
-		ba = read(conn)
-
-		if bytes.Compare(ba, []byte(visulas_ready)) != 0 {
-			break
+		if *server != "" {
+			i--
 		}
 	}
-
-	common.Error(os.WriteFile(*filename, ba, common.DefaultFileMode))
-
-	write(conn, review_ready)
 
 	return nil
 }
@@ -159,5 +256,5 @@ func run() error {
 func main() {
 	defer common.Done()
 
-	common.Run([]string{"c"})
+	common.Run([]string{"c|s"})
 }

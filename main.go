@@ -53,7 +53,7 @@ const (
 )
 
 func init() {
-	common.Init(false, "1.0.0", "", "", "2019", "VISULAS testing tool", "mpetavy", fmt.Sprintf("https://github.com/mpetavy/%s", common.Title()), common.APACHE, nil, nil, nil, run, 0)
+	common.Init(false, "1.0.0", "", "", "2019", "Emulation tool", "mpetavy", fmt.Sprintf("https://github.com/mpetavy/%s", common.Title()), common.APACHE, nil, nil, nil, run, 0)
 }
 
 func convert(txt string) string {
@@ -217,6 +217,7 @@ func run() error {
 		common.Info("Listen on %s...", *server)
 
 		address = *server
+		*stepTimeout = 0
 	} else {
 		common.Info("Connect %s...", *client)
 	}
@@ -236,6 +237,17 @@ func run() error {
 	}()
 
 	for i := 0; i < *loopCount; i++ {
+		if *server != "" {
+			i--
+
+			if *useKey {
+				common.Info("--------------------")
+				common.Info("Press RETURN to get ready...")
+				reader := bufio.NewReader(os.Stdin)
+				reader.ReadString('\n')
+			}
+		}
+
 		common.Info("--------------------")
 		common.Info("#%d", i)
 
@@ -246,16 +258,6 @@ func run() error {
 
 		if i < *loopCount-1 {
 			time.Sleep(common.MillisecondToDuration(*stepTimeout))
-		}
-
-		if *server != "" {
-			i--
-
-			if *useKey {
-				common.Info("Press RETURN to get ready...")
-				reader := bufio.NewReader(os.Stdin)
-				reader.ReadString('\n')
-			}
 		}
 	}
 

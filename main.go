@@ -34,7 +34,7 @@ const (
 
 func init() {
 	writeFilename = flag.String("w", "visualas.dmp", "filename for dumping received Visulas data")
-	readFilename = flag.String("r", "visualas.dmp", "filename for sending Visulas data")
+	readFilename = flag.String("r", "", "filename for sending Visulas data")
 	client = flag.String("c", "", "client socket address to read from")
 	server = flag.String("s", "", "server socket address to listen to")
 	readTimeout = flag.Int("rt", 3000, "read timeout")
@@ -60,7 +60,7 @@ func convert(txt string) string {
 	return strings.ReplaceAll(txt, "\r", "\r\n")
 }
 
-func read(reader io.Reader) ([]byte, error) {
+func read(reader io.Reader, asString bool) ([]byte, error) {
 	if *stepTimeout > 0 {
 		time.Sleep(common.MillisecondToDuration(*stepTimeout))
 	}
@@ -69,11 +69,8 @@ func read(reader io.Reader) ([]byte, error) {
 		reader = common.NewTimeoutReader(reader, common.MillisecondToDuration(*readTimeout), true)
 	}
 
-	if *server != "" {
-		common.Info("--------------------")
-	}
-
-	common.Info("read from...")
+	common.Info("--------------------")
+	common.Info("read...")
 
 	b1 := make([]byte, 1)
 	buf := bytes.Buffer{}
@@ -94,20 +91,26 @@ func read(reader io.Reader) ([]byte, error) {
 
 	txt := string(buf.Bytes())
 
-	common.Info("%d bytes read: %s", buf.Len(), convert(txt))
+	if asString {
+		common.Info("read %d bytes: %s", buf.Len(), convert(txt))
+	} else {
+		common.Info("read %d bytes: %+q", buf.Len(), txt)
+	}
 
 	return buf.Bytes(), nil
 }
 
-func write(writer io.Writer, txt string) error {
+func write(writer io.Writer, txt string, asString bool) error {
 	if *stepTimeout > 0 {
 		time.Sleep(common.MillisecondToDuration(*stepTimeout))
 	}
 
-	if *client != "" {
-		common.Info("--------------------")
+	common.Info("--------------------")
+	if asString {
+		common.Info("write %d bytes: %s", len(txt), convert(txt))
+	} else {
+		common.Info("write %d bytes: %+q", len(txt), txt)
 	}
-	common.Info("write to: %s...", convert(txt))
 
 	var err error
 
@@ -116,7 +119,7 @@ func write(writer io.Writer, txt string) error {
 		return err
 	}
 
-	common.Info("%d bytes written: %s", n, convert(txt))
+	common.Info("write %d bytes", n)
 
 	return nil
 }
@@ -132,28 +135,27 @@ func process(connector common.EndpointConnector) error {
 	}()
 
 	if *client != "" {
-		write(conn, forum_ready)
+		write(conn, forum_ready, false)
 
-		var ba []byte
-
-		if bytes.Compare(ba, []byte(visulas_ready)) != 0 {
-			write(conn, forum_receive_ready)
+		ba, err := read(conn, false)
+		if common.Error(err) {
+			return err
 		}
 
-		for {
-			ba, err = read(conn)
-			if common.Error(err) {
-				return err
-			}
+		if bytes.Compare(ba, []byte(visulas_ready)) != 0 {
+			return fmt.Errorf("expected %s", convert(visulas_ready))
+		}
 
-			if bytes.Compare(ba, []byte(visulas_ready)) != 0 {
-				break
-			}
+		write(conn, forum_receive_ready, false)
+
+		ba, err = read(conn, true)
+		if common.Error(err) {
+			return err
 		}
 
 		common.Error(os.WriteFile(*writeFilename, ba, common.DefaultFileMode))
 
-		write(conn, review_ready)
+		write(conn, review_ready, false)
 	} else {
 		var fileContent []byte
 		var err error
@@ -170,29 +172,29 @@ func process(connector common.EndpointConnector) error {
 			}
 		}
 
-		ba, err := read(conn)
+		ba, err := read(conn, false)
 		if common.Error(err) {
 			return err
 		}
 
 		if bytes.Compare(ba, []byte(forum_ready)) != 0 {
-			fmt.Errorf("expected %s", convert(forum_ready))
+			return fmt.Errorf("expected %s", convert(forum_ready))
 		}
 
-		write(conn, visulas_ready)
+		write(conn, visulas_ready, false)
 
-		ba, err = read(conn)
+		ba, err = read(conn, false)
 		if common.Error(err) {
 			return err
 		}
 
 		if bytes.Compare(ba, []byte(forum_receive_ready)) != 0 {
-			fmt.Errorf("expected %s", convert(forum_receive_ready))
+			return fmt.Errorf("expected %s", convert(forum_receive_ready))
 		}
 
-		write(conn, string(fileContent))
+		write(conn, string(fileContent), true)
 
-		ba, err = read(conn)
+		ba, err = read(conn, false)
 		if common.Error(err) {
 			return err
 		}

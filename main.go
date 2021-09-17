@@ -17,15 +17,14 @@ import (
 )
 
 var (
-	readFilename  *string
-	writeFilename *string
-	client        *string
-	server        *string
-	readTimeout   *int
-	stepTimeout   *int
-	loopCount     *int
-	useTls        *bool
-	useKey        *bool
+	filename    *string
+	client      *string
+	server      *string
+	readTimeout *int
+	stepTimeout *int
+	loopCount   *int
+	useTls      *bool
+	useKey      *bool
 )
 
 const (
@@ -33,8 +32,7 @@ const (
 )
 
 func init() {
-	writeFilename = flag.String("w", "visualas.dmp", "filename for dumping received Visulas data")
-	readFilename = flag.String("r", "", "filename for sending Visulas data")
+	filename = flag.String("f", "", "filename for dumping received Visulas data")
 	client = flag.String("c", "", "client socket address to read from")
 	server = flag.String("s", "", "server socket address to listen to")
 	readTimeout = flag.Int("rt", 3000, "read timeout")
@@ -153,15 +151,15 @@ func process(connector common.EndpointConnector) error {
 			return err
 		}
 
-		common.Error(os.WriteFile(*writeFilename, ba, common.DefaultFileMode))
+		common.Error(os.WriteFile(*filename, ba, common.DefaultFileMode))
 
 		write(conn, review_ready, false)
 	} else {
 		var fileContent []byte
 		var err error
 
-		if *readFilename != "" {
-			fileContent, err = ioutil.ReadFile(*readFilename)
+		if *filename != "" {
+			fileContent, err = ioutil.ReadFile(*filename)
 			if common.Error(err) {
 				return err
 			}

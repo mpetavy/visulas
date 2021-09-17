@@ -32,7 +32,7 @@ const (
 )
 
 func init() {
-	filename = flag.String("f", "", "filename for dumping received Visulas data")
+	filename = flag.String("f", "", "filename for dumping (-c) received data or send data (-s)")
 	client = flag.String("c", "", "client socket address to read from")
 	server = flag.String("s", "", "server socket address to listen to")
 	readTimeout = flag.Int("rt", 3000, "read timeout")

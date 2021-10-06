@@ -51,7 +51,7 @@ const (
 )
 
 func init() {
-	common.Init(false, "1.0.0", "", "", "2019", "Emulation tool", "mpetavy", fmt.Sprintf("https://github.com/mpetavy/%s", common.Title()), common.APACHE, nil, nil, nil, run, 0)
+	common.Init(false, "1.0.1", "", "", "2019", "Emulation tool", "mpetavy", fmt.Sprintf("https://github.com/mpetavy/%s", common.Title()), common.APACHE, nil, nil, nil, run, 0)
 }
 
 func convert(txt string) string {
@@ -151,7 +151,9 @@ func process(connector common.EndpointConnector) error {
 			return err
 		}
 
-		common.Error(os.WriteFile(*filename, ba, common.DefaultFileMode))
+		if *filename != "" {
+			common.Error(os.WriteFile(*filename, ba, common.DefaultFileMode))
+		}
 
 		write(conn, review_ready, false)
 	} else {

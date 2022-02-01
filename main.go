@@ -261,7 +261,9 @@ func run() error {
 
 		err := process(connector)
 		if common.Error(err) {
-			return err
+			if *loopTimeout == 0 {
+				return err
+			}
 		}
 
 		if i < *loopCount-1 {

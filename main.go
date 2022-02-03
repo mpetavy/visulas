@@ -22,6 +22,7 @@ var (
 	server      *string
 	readTimeout *int
 	stepTimeout *int
+	loopTimeout *int
 	loopCount   *int
 	useTls      *bool
 	useKey      *bool
@@ -36,7 +37,8 @@ func init() {
 	client = flag.String("c", "", "client socket address to read from")
 	server = flag.String("s", "", "server socket address to listen to")
 	readTimeout = flag.Int("rt", 3000, "read timeout")
-	stepTimeout = flag.Int("st", 1000, "step timeout")
+	stepTimeout = flag.Int("st", 1000, "pacer timeout")
+	loopTimeout = flag.Int("lt", 0, "loop timeout")
 	loopCount = flag.Int("lc", 1, "loop count")
 	useTls = flag.Bool("tls", false, "use tls")
 	useKey = flag.Bool("key", false, "use tls")
@@ -247,6 +249,10 @@ func run() error {
 				common.Info("Press RETURN to get ready...")
 				reader := bufio.NewReader(os.Stdin)
 				reader.ReadString('\n')
+			} else {
+				if *loopTimeout > 0 {
+					time.Sleep(common.MillisecondToDuration(*loopTimeout))
+				}
 			}
 		}
 
@@ -255,7 +261,9 @@ func run() error {
 
 		err := process(connector)
 		if common.Error(err) {
-			return err
+			if *loopTimeout == 0 {
+				return err
+			}
 		}
 
 		if i < *loopCount-1 {

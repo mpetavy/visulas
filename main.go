@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -163,7 +162,7 @@ func process(connector common.EndpointConnector) error {
 		var err error
 
 		if *filename != "" {
-			fileContent, err = ioutil.ReadFile(*filename)
+			fileContent, err = os.ReadFile(*filename)
 			if common.Error(err) {
 				return err
 			}

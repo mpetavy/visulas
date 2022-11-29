@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"flag"
@@ -65,7 +66,10 @@ func read(reader io.Reader, asString bool) ([]byte, error) {
 	}
 
 	if *client != "" && *readTimeout > 0 {
-		reader = common.NewTimeoutReader(reader, common.MillisecondToDuration(*readTimeout), true)
+		//reader = common.NewTimeoutReader(reader, common.MillisecondToDuration(*readTimeout), true)
+		reader = common.NewTimeoutReader(reader, false, func() (context.Context, context.CancelFunc) {
+			return context.WithTimeout(context.Background(), common.MillisecondToDuration(*readTimeout))
+		})
 	}
 
 	common.Info("--------------------")

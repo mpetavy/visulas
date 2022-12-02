@@ -264,7 +264,7 @@ func run() error {
 
 		err := process(connector)
 		if common.Error(err) {
-			if *loopTimeout == 0 {
+			if *client != "" {
 				return err
 			}
 		}

@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mpetavy/common"
@@ -26,6 +28,8 @@ var (
 	loopCount   *int
 	useTls      *bool
 	useKey      *bool
+	scale       *int
+	tlsConfig   *tls.Config
 )
 
 const (
@@ -42,6 +46,7 @@ func init() {
 	loopCount = flag.Int("lc", 1, "loop count")
 	useTls = flag.Bool("tls", false, "use tls")
 	useKey = flag.Bool("key", false, "use tls")
+	scale = flag.Int("scale", 1, "scale instances")
 }
 
 const (
@@ -199,27 +204,11 @@ func process(conn io.ReadWriteCloser) error {
 	return nil
 }
 
-func run() error {
-	var err error
-	var tlsConfig *tls.Config
-
-	if *useTls {
-		tlsConfig, err = common.NewTlsConfigFromFlags()
-		if common.Error(err) {
-			return err
-		}
-	}
-
-	address := *client
-	if address == "" {
-		common.Info("Listen on %s...", *server)
-
-		address = *server
-
-		*loopCount = 9999999
-		*stepTimeout = 0
+func instance(address string) error {
+	if *server != "" {
+		common.Info("Listen on %s...", address)
 	} else {
-		common.Info("Connect %s...", *client)
+		common.Info("Connect %s...", address)
 	}
 
 	ep, connector, err := common.NewEndpoint(address, *client != "", tlsConfig)
@@ -245,13 +234,6 @@ func run() error {
 	}()
 
 	for i := 0; i < *loopCount; i++ {
-		if conn == nil {
-			conn, err = connector()
-			if common.Error(err) {
-				return err
-			}
-		}
-
 		if *server != "" {
 			if *useKey {
 				common.Info("--------------------")
@@ -265,7 +247,14 @@ func run() error {
 			}
 		}
 
-		common.Info("--------------------")
+		if conn == nil {
+			common.Info("connection open")
+			conn, err = connector()
+			if common.Error(err) {
+				return err
+			}
+		}
+
 		common.Info("#%d", i)
 
 		err := process(conn)
@@ -275,7 +264,7 @@ func run() error {
 			} else {
 				conn.Close()
 
-				common.Info("connection closed -> reinit!")
+				common.Info("connection closed")
 
 				conn = nil
 			}
@@ -285,6 +274,52 @@ func run() error {
 			time.Sleep(common.MillisecondToDuration(*stepTimeout))
 		}
 	}
+
+	return nil
+}
+
+func run() error {
+	var err error
+
+	if *useTls {
+		tlsConfig, err = common.NewTlsConfigFromFlags()
+		if common.Error(err) {
+			return err
+		}
+	}
+
+	address := *client
+	if address == "" {
+		address = *server
+
+		*loopCount = 9999999
+		*stepTimeout = 0
+	} else {
+		*scale = 1
+	}
+
+	wg := sync.WaitGroup{}
+
+	for i := 0; i < *scale; i++ {
+		wg.Add(1)
+		go func(address string) {
+			defer wg.Done()
+
+			instance(address)
+		}(address)
+
+		if *scale > 1 {
+			a, err := strconv.Atoi(address[1:])
+			if common.Error(err) {
+				return err
+			}
+
+			a++
+			address = fmt.Sprintf(":%d", a)
+		}
+	}
+
+	wg.Wait()
 
 	return nil
 }

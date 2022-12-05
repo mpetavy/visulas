@@ -127,16 +127,7 @@ func write(writer io.Writer, txt string, asString bool) error {
 	return nil
 }
 
-func process(connector common.EndpointConnector) error {
-	conn, err := connector()
-	if common.Error(err) {
-		return err
-	}
-
-	defer func() {
-		common.Error(conn.Close())
-	}()
-
+func process(conn io.ReadWriteCloser) error {
 	if *client != "" {
 		write(conn, forum_ready, false)
 
@@ -245,6 +236,15 @@ func run() error {
 		common.Error(ep.Stop())
 	}()
 
+	conn, err := connector()
+	if common.Error(err) {
+		return err
+	}
+
+	defer func() {
+		common.Error(conn.Close())
+	}()
+
 	for i := 0; i < *loopCount; i++ {
 		if *server != "" {
 			if *useKey {
@@ -262,7 +262,7 @@ func run() error {
 		common.Info("--------------------")
 		common.Info("#%d", i)
 
-		err := process(connector)
+		err := process(conn)
 		if common.Error(err) {
 			if *client != "" {
 				return err

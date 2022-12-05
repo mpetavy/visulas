@@ -236,16 +236,22 @@ func run() error {
 		common.Error(ep.Stop())
 	}()
 
-	conn, err := connector()
-	if common.Error(err) {
-		return err
-	}
+	var conn io.ReadWriteCloser
 
 	defer func() {
-		common.Error(conn.Close())
+		if conn != nil {
+			common.Error(conn.Close())
+		}
 	}()
 
 	for i := 0; i < *loopCount; i++ {
+		if conn == nil {
+			conn, err = connector()
+			if common.Error(err) {
+				return err
+			}
+		}
+
 		if *server != "" {
 			if *useKey {
 				common.Info("--------------------")
@@ -266,6 +272,12 @@ func run() error {
 		if common.Error(err) {
 			if *client != "" {
 				return err
+			} else {
+				conn.Close()
+
+				common.Info("connection closed -> reinit!")
+
+				conn = nil
 			}
 		}
 

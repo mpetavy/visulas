@@ -259,15 +259,11 @@ func instance(address string) error {
 
 		err := process(conn)
 		if common.Error(err) {
-			if *client != "" {
-				return err
-			} else {
-				conn.Close()
+			conn.Close()
 
-				common.Info("connection closed")
+			common.Info("connection closed")
 
-				conn = nil
-			}
+			conn = nil
 		}
 
 		if i < *loopCount-1 {
@@ -294,6 +290,10 @@ func run() error {
 
 		*loopCount = 9999999
 		*stepTimeout = 0
+
+		if *scale > 1 {
+			*useKey = false
+		}
 	} else {
 		*scale = 1
 	}

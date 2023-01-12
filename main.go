@@ -8,14 +8,12 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"github.com/mpetavy/common"
 	"io"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
-
-	"github.com/mpetavy/common"
 )
 
 var (
@@ -41,7 +39,7 @@ func init() {
 	client = flag.String("c", "", "client socket address to read from")
 	server = flag.String("s", "", "server socket address to listen to")
 	readTimeout = flag.Int("rt", 3000, "read timeout")
-	stepTimeout = flag.Int("st", 1000, "pacer timeout")
+	stepTimeout = flag.Int("st", 500, "pacer timeout")
 	loopTimeout = flag.Int("lt", 0, "loop timeout")
 	loopCount = flag.Int("lc", 1, "loop count")
 	useTls = flag.Bool("tls", false, "use tls")
@@ -67,7 +65,7 @@ func convert(txt string) string {
 
 func read(reader io.Reader, asString bool) ([]byte, error) {
 	if *stepTimeout > 0 {
-		time.Sleep(common.MillisecondToDuration(*stepTimeout))
+		common.Sleep(common.MillisecondToDuration(*stepTimeout))
 	}
 
 	if *client != "" && *readTimeout > 0 {
@@ -97,12 +95,10 @@ func read(reader io.Reader, asString bool) ([]byte, error) {
 		}
 	}
 
-	txt := string(buf.Bytes())
-
 	if asString {
-		common.Info("read %d bytes: %s", buf.Len(), convert(txt))
+		common.Info("read %d bytes: %s", buf.Len(), convert(string(buf.Bytes())))
 	} else {
-		common.Info("read %d bytes: %+q", buf.Len(), txt)
+		common.Info("read %d bytes: %+q", buf.Len(), buf.Bytes())
 	}
 
 	return buf.Bytes(), nil
@@ -110,7 +106,7 @@ func read(reader io.Reader, asString bool) ([]byte, error) {
 
 func write(writer io.Writer, txt string, asString bool) error {
 	if *stepTimeout > 0 {
-		time.Sleep(common.MillisecondToDuration(*stepTimeout))
+		common.Sleep(common.MillisecondToDuration(*stepTimeout))
 	}
 
 	common.Info("--------------------")
@@ -132,6 +128,10 @@ func write(writer io.Writer, txt string, asString bool) error {
 	return nil
 }
 
+func bufferError(expected, received []byte) error {
+	return fmt.Errorf("expected %+q but received %+q", expected, received)
+}
+
 func process(conn io.ReadWriteCloser) error {
 	if *client != "" {
 		write(conn, forum_ready, false)
@@ -142,7 +142,7 @@ func process(conn io.ReadWriteCloser) error {
 		}
 
 		if bytes.Compare(ba, []byte(visulas_ready)) != 0 {
-			return fmt.Errorf("expected %s", convert(visulas_ready))
+			return common.TrackError(bufferError([]byte(visulas_ready), ba))
 		}
 
 		write(conn, forum_receive_ready, false)
@@ -179,7 +179,7 @@ func process(conn io.ReadWriteCloser) error {
 		}
 
 		if bytes.Compare(ba, []byte(forum_ready)) != 0 {
-			return fmt.Errorf("expected %s", convert(forum_ready))
+			return common.TrackError(bufferError([]byte(forum_ready), ba))
 		}
 
 		write(conn, visulas_ready, false)
@@ -190,7 +190,7 @@ func process(conn io.ReadWriteCloser) error {
 		}
 
 		if bytes.Compare(ba, []byte(forum_receive_ready)) != 0 {
-			return fmt.Errorf("expected %s", convert(forum_receive_ready))
+			return common.TrackError(bufferError([]byte(forum_receive_ready), ba))
 		}
 
 		write(conn, string(fileContent), true)
@@ -234,16 +234,14 @@ func instance(address string) error {
 	}()
 
 	for i := 0; i < *loopCount; i++ {
-		if *server != "" {
-			if *useKey {
-				common.Info("--------------------")
-				common.Info("Press RETURN to get ready...")
-				reader := bufio.NewReader(os.Stdin)
-				reader.ReadString('\n')
-			} else {
-				if *loopTimeout > 0 {
-					time.Sleep(common.MillisecondToDuration(*loopTimeout))
-				}
+		if *useKey {
+			common.Info("--------------------")
+			common.Info("Press RETURN to get ready...")
+			reader := bufio.NewReader(os.Stdin)
+			reader.ReadString('\n')
+		} else {
+			if *loopTimeout > 0 {
+				common.Sleep(common.MillisecondToDuration(*loopTimeout))
 			}
 		}
 
@@ -267,7 +265,7 @@ func instance(address string) error {
 		}
 
 		if i < *loopCount-1 {
-			time.Sleep(common.MillisecondToDuration(*stepTimeout))
+			common.Sleep(common.MillisecondToDuration(*loopTimeout))
 		}
 	}
 
@@ -289,7 +287,6 @@ func run() error {
 		address = *server
 
 		*loopCount = 9999999
-		*stepTimeout = 0
 
 		if *scale > 1 {
 			*useKey = false

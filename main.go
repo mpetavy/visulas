@@ -300,6 +300,8 @@ func run() error {
 	for i := 0; i < *scale; i++ {
 		wg.Add(1)
 		go func(address string) {
+			defer common.UnregisterGoRoutine(common.RegisterGoRoutine(1))
+
 			defer wg.Done()
 
 			instance(address)

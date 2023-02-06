@@ -56,7 +56,7 @@ const (
 )
 
 func init() {
-	common.Init(false, "1.0.1", "", "", "2019", "Emulation tool", "mpetavy", fmt.Sprintf("https://github.com/mpetavy/%s", common.Title()), common.APACHE, nil, nil, nil, run, 0)
+	common.Init("1.0.1", "", "", "2019", "Emulation tool", "mpetavy", fmt.Sprintf("https://github.com/mpetavy/%s", common.Title()), common.APACHE, nil, nil, nil, run, 0)
 }
 
 func convert(txt string) string {
@@ -134,7 +134,7 @@ func bufferError(expected, received []byte) error {
 
 func process(conn io.ReadWriteCloser) error {
 	if *client != "" {
-		write(conn, forum_ready, false)
+		common.Error(write(conn, forum_ready, false))
 
 		ba, err := read(conn, false)
 		if common.Error(err) {
@@ -142,10 +142,13 @@ func process(conn io.ReadWriteCloser) error {
 		}
 
 		if bytes.Compare(ba, []byte(visulas_ready)) != 0 {
-			return common.TrackError(bufferError([]byte(visulas_ready), ba))
+			err := bufferError([]byte(visulas_ready), ba)
+			if common.Error(err) {
+				return err
+			}
 		}
 
-		write(conn, forum_receive_ready, false)
+		common.Error(write(conn, forum_receive_ready, false))
 
 		ba, err = read(conn, true)
 		if common.Error(err) {
@@ -156,7 +159,7 @@ func process(conn io.ReadWriteCloser) error {
 			common.Error(os.WriteFile(*filename, ba, common.DefaultFileMode))
 		}
 
-		write(conn, review_ready, false)
+		common.Error(write(conn, review_ready, false))
 	} else {
 		var fileContent []byte
 		var err error
@@ -179,10 +182,13 @@ func process(conn io.ReadWriteCloser) error {
 		}
 
 		if bytes.Compare(ba, []byte(forum_ready)) != 0 {
-			return common.TrackError(bufferError([]byte(forum_ready), ba))
+			err := bufferError([]byte(forum_ready), ba)
+			if common.Error(err) {
+				return err
+			}
 		}
 
-		write(conn, visulas_ready, false)
+		common.Error(write(conn, visulas_ready, false))
 
 		ba, err = read(conn, false)
 		if common.Error(err) {
@@ -190,10 +196,13 @@ func process(conn io.ReadWriteCloser) error {
 		}
 
 		if bytes.Compare(ba, []byte(forum_receive_ready)) != 0 {
-			return common.TrackError(bufferError([]byte(forum_receive_ready), ba))
+			err := bufferError([]byte(forum_receive_ready), ba)
+			if common.Error(err) {
+				return err
+			}
 		}
 
-		write(conn, string(fileContent), true)
+		common.Error(write(conn, string(fileContent), true))
 
 		ba, err = read(conn, false)
 		if common.Error(err) {
@@ -238,7 +247,8 @@ func instance(address string) error {
 			common.Info("--------------------")
 			common.Info("Press RETURN to get ready...")
 			reader := bufio.NewReader(os.Stdin)
-			reader.ReadString('\n')
+			_, err := reader.ReadString('\n')
+			common.Error(err)
 		} else {
 			if *loopTimeout > 0 {
 				common.Sleep(common.MillisecondToDuration(*loopTimeout))
@@ -257,7 +267,7 @@ func instance(address string) error {
 
 		err := process(conn)
 		if common.Error(err) {
-			conn.Close()
+			common.Error(conn.Close())
 
 			common.Info("connection closed")
 
@@ -304,7 +314,7 @@ func run() error {
 
 			defer wg.Done()
 
-			instance(address)
+			common.Error(instance(address))
 		}(address)
 
 		if *scale > 1 {

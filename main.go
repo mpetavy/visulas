@@ -70,7 +70,7 @@ func read(reader io.Reader, asString bool) ([]byte, error) {
 
 	if *client != "" && *readTimeout > 0 {
 		//reader = common.NewTimeoutReader(reader, common.MillisecondToDuration(*readTimeout), true)
-		reader = common.NewTimeoutReader(reader, false, func() (context.Context, context.CancelFunc) {
+		reader = common.NewTimeoutReader(reader, true, func() (context.Context, context.CancelFunc) {
 			return context.WithTimeout(context.Background(), common.MillisecondToDuration(*readTimeout))
 		})
 	}

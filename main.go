@@ -56,7 +56,7 @@ const (
 )
 
 func init() {
-	common.Init("1.0.1", "", "", "2019", "Emulation tool", "mpetavy", fmt.Sprintf("https://github.com/mpetavy/%s", common.Title()), common.APACHE, nil, nil, nil, run, 0)
+	common.Init("1.2.0", "", "", "2019", "Emulation tool", "mpetavy", fmt.Sprintf("https://github.com/mpetavy/%s", common.Title()), common.APACHE, nil, nil, nil, run, 0)
 }
 
 func convert(txt string) string {
@@ -83,7 +83,7 @@ func read(reader io.Reader, asString bool) ([]byte, error) {
 
 	for {
 		nread, err := reader.Read(b1)
-		if common.Error(err) {
+		if common.DebugError(err) {
 			return nil, err
 		}
 		if nread > 0 {
@@ -119,7 +119,7 @@ func write(writer io.Writer, txt string, asString bool) error {
 	var err error
 
 	n, err := writer.Write([]byte(txt))
-	if common.Error(err) {
+	if common.DebugError(err) {
 		return err
 	}
 
@@ -132,12 +132,12 @@ func bufferError(expected, received []byte) error {
 	return fmt.Errorf("expected %+q but received %+q", expected, received)
 }
 
-func process(conn io.ReadWriteCloser) error {
+func process(conn common.EndpointConnection) error {
 	if *client != "" {
 		common.Error(write(conn, forum_ready, false))
 
 		ba, err := read(conn, false)
-		if common.Error(err) {
+		if common.IsErrTimeout(err) || common.Error(err) {
 			return err
 		}
 
@@ -149,7 +149,6 @@ func process(conn io.ReadWriteCloser) error {
 		}
 
 		common.Error(write(conn, forum_receive_ready, false))
-
 		ba, err = read(conn, true)
 		if common.Error(err) {
 			return err
@@ -234,7 +233,7 @@ func instance(address string) error {
 		common.Error(ep.Stop())
 	}()
 
-	var conn io.ReadWriteCloser
+	var conn common.EndpointConnection
 
 	defer func() {
 		if conn != nil {
@@ -247,12 +246,7 @@ func instance(address string) error {
 			common.Info("--------------------")
 			common.Info("Press RETURN to get ready...")
 			reader := bufio.NewReader(os.Stdin)
-			_, err := reader.ReadString('\n')
-			common.Error(err)
-		} else {
-			if *loopTimeout > 0 {
-				common.Sleep(common.MillisecondToDuration(*loopTimeout))
-			}
+			reader.ReadString('\n')
 		}
 
 		if conn == nil {
@@ -266,16 +260,16 @@ func instance(address string) error {
 		common.Info("#%d", i)
 
 		err := process(conn)
-		if common.Error(err) {
+		if common.IsErrTimeout(err) || common.Error(err) {
 			common.Error(conn.Close())
 
 			common.Info("connection closed")
 
 			conn = nil
-		}
-
-		if i < *loopCount-1 {
-			common.Sleep(common.MillisecondToDuration(*loopTimeout))
+		} else {
+			if i < *loopCount-1 {
+				common.Sleep(common.MillisecondToDuration(*loopTimeout))
+			}
 		}
 	}
 

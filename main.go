@@ -246,7 +246,9 @@ func instance(address string) error {
 			common.Info("--------------------")
 			common.Info("Press RETURN to get ready...")
 			reader := bufio.NewReader(os.Stdin)
-			reader.ReadString('\n')
+			_, err := reader.ReadString('\n')
+			common.Error(err)
+
 		}
 
 		if conn == nil {
@@ -328,7 +330,5 @@ func run() error {
 }
 
 func main() {
-	defer common.Done()
-
 	common.Run([]string{"c|s"})
 }

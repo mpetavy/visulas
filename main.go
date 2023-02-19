@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"flag"
@@ -14,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 var (
@@ -63,33 +63,26 @@ func convert(txt string) string {
 	return strings.ReplaceAll(txt, "\r", "\r\n")
 }
 
-func read(reader io.Reader, asString bool) ([]byte, error) {
-	if *stepTimeout > 0 {
-		common.Sleep(common.MillisecondToDuration(*stepTimeout))
-	}
-
-	if *client != "" && *readTimeout > 0 {
-		//reader = common.NewTimeoutReader(reader, common.MillisecondToDuration(*readTimeout), true)
-		reader = common.NewTimeoutReader(reader, true, func() (context.Context, context.CancelFunc) {
-			return context.WithTimeout(context.Background(), common.MillisecondToDuration(*readTimeout))
-		})
-	}
-
+func readBytes(reader io.Reader, timeout time.Duration, asString bool) ([]byte, error) {
 	common.Info("--------------------")
 	common.Info("read...")
 
-	b1 := make([]byte, 1)
+	ba := make([]byte, 1024)
 	buf := bytes.Buffer{}
 
 	for {
-		nread, err := reader.Read(b1)
-		if common.DebugError(err) {
+		n, err := common.ReadWithTimeout(reader, timeout, ba)
+		if common.IsErrTimeout(err) {
+			break
+		}
+		if common.Error(err) {
 			return nil, err
 		}
-		if nread > 0 {
-			buf.Write(b1)
 
-			if b1[0] == '\x04' {
+		if n > 0 {
+			buf.Write(ba[:n])
+
+			if ba[n-1] == '\x04' {
 				break
 			}
 		}
@@ -104,26 +97,22 @@ func read(reader io.Reader, asString bool) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func write(writer io.Writer, txt string, asString bool) error {
+func writeBytes(writer io.Writer, txt string, asString bool) error {
 	if *stepTimeout > 0 {
 		common.Sleep(common.MillisecondToDuration(*stepTimeout))
 	}
 
 	common.Info("--------------------")
 	if asString {
-		common.Info("write %d bytes: %s", len(txt), convert(txt))
+		common.Info("writeBytes %d bytes: %s", len(txt), convert(txt))
 	} else {
-		common.Info("write %d bytes: %+q", len(txt), txt)
+		common.Info("writeBytes %d bytes: %+q", len(txt), txt)
 	}
 
-	var err error
-
-	n, err := writer.Write([]byte(txt))
+	_, err := writer.Write([]byte(txt))
 	if common.DebugError(err) {
 		return err
 	}
-
-	common.Info("write %d bytes", n)
 
 	return nil
 }
@@ -133,12 +122,19 @@ func bufferError(expected, received []byte) error {
 }
 
 func process(conn common.EndpointConnection) error {
-	if *client != "" {
-		common.Error(write(conn, forum_ready, false))
+	defer func() {
+		common.Error(conn.Close())
+	}()
 
-		ba, err := read(conn, false)
-		if common.IsErrTimeout(err) || common.Error(err) {
+	if *client != "" {
+		common.Error(writeBytes(conn, forum_ready, false))
+
+		ba, err := readBytes(conn, common.MillisecondToDuration(*readTimeout), false)
+		if common.Error(err) {
 			return err
+		}
+		if len(ba) == 0 {
+			return nil
 		}
 
 		if bytes.Compare(ba, []byte(visulas_ready)) != 0 {
@@ -148,8 +144,8 @@ func process(conn common.EndpointConnection) error {
 			}
 		}
 
-		common.Error(write(conn, forum_receive_ready, false))
-		ba, err = read(conn, true)
+		common.Error(writeBytes(conn, forum_receive_ready, false))
+		ba, err = readBytes(conn, common.MillisecondToDuration(*readTimeout), true)
 		if common.Error(err) {
 			return err
 		}
@@ -158,7 +154,7 @@ func process(conn common.EndpointConnection) error {
 			common.Error(os.WriteFile(*filename, ba, common.DefaultFileMode))
 		}
 
-		common.Error(write(conn, review_ready, false))
+		common.Error(writeBytes(conn, review_ready, false))
 	} else {
 		var fileContent []byte
 		var err error
@@ -175,7 +171,7 @@ func process(conn common.EndpointConnection) error {
 			}
 		}
 
-		ba, err := read(conn, false)
+		ba, err := readBytes(conn, 0, false)
 		if common.Error(err) {
 			return err
 		}
@@ -187,9 +183,9 @@ func process(conn common.EndpointConnection) error {
 			}
 		}
 
-		common.Error(write(conn, visulas_ready, false))
+		common.Error(writeBytes(conn, visulas_ready, false))
 
-		ba, err = read(conn, false)
+		ba, err = readBytes(conn, common.MillisecondToDuration(*readTimeout), false)
 		if common.Error(err) {
 			return err
 		}
@@ -201,9 +197,9 @@ func process(conn common.EndpointConnection) error {
 			}
 		}
 
-		common.Error(write(conn, string(fileContent), true))
+		common.Error(writeBytes(conn, string(fileContent), true))
 
-		ba, err = read(conn, false)
+		ba, err = readBytes(conn, common.MillisecondToDuration(*readTimeout), false)
 		if common.Error(err) {
 			return err
 		}
@@ -235,12 +231,6 @@ func instance(address string) error {
 
 	var conn common.EndpointConnection
 
-	defer func() {
-		if conn != nil {
-			common.Error(conn.Close())
-		}
-	}()
-
 	for i := 0; i < *loopCount; i++ {
 		if *useKey {
 			common.Info("--------------------")
@@ -251,27 +241,18 @@ func instance(address string) error {
 
 		}
 
-		if conn == nil {
-			common.Info("connection open")
-			conn, err = connector()
-			if common.Error(err) {
-				return err
-			}
+		common.Info("connection open")
+		conn, err = connector()
+		if common.Error(err) {
+			return err
 		}
 
 		common.Info("#%d", i)
 
-		err := process(conn)
-		if common.IsErrTimeout(err) || common.Error(err) {
-			common.Error(conn.Close())
+		common.Error(process(conn))
 
-			common.Info("connection closed")
-
-			conn = nil
-		} else {
-			if i < *loopCount-1 {
-				common.Sleep(common.MillisecondToDuration(*loopTimeout))
-			}
+		if i < *loopCount-1 {
+			common.Sleep(common.MillisecondToDuration(*loopTimeout))
 		}
 	}
 

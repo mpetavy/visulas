@@ -67,14 +67,15 @@ func readBytes(reader io.Reader, timeout time.Duration, asString bool) ([]byte, 
 	common.Info("--------------------")
 	common.Info("read...")
 
+	if timeout != 0 {
+		reader = common.NewTimeoutReader(reader, true, common.MillisecondToDuration(*readTimeout))
+	}
+
 	ba := make([]byte, 1024)
 	buf := bytes.Buffer{}
 
 	for {
-		n, err := common.ReadWithTimeout(reader, timeout, ba)
-		if common.IsErrTimeout(err) {
-			break
-		}
+		n, err := reader.Read(ba)
 		if common.Error(err) {
 			return nil, err
 		}
@@ -236,8 +237,7 @@ func instance(address string) error {
 			common.Info("--------------------")
 			common.Info("Press RETURN to get ready...")
 			reader := bufio.NewReader(os.Stdin)
-			_, err := reader.ReadString('\n')
-			common.Error(err)
+			reader.ReadString('\n')
 
 		}
 

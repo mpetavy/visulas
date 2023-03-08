@@ -59,8 +59,8 @@ func init() {
 	common.Init("visulas", "1.3.0", "", "", "2019", "Emulation tool", "mpetavy", fmt.Sprintf("https://github.com/mpetavy/%s", common.Title()), common.APACHE, nil, nil, nil, run, 0)
 }
 
-func convert(txt string) string {
-	return strings.ReplaceAll(txt, "\r", "\r\n")
+func convertLF(txt string) string {
+	return strings.ReplaceAll(txt, "\\x0d", "\r\n")
 }
 
 func readBytes(reader io.Reader, timeout time.Duration, asString bool) ([]byte, error) {
@@ -89,11 +89,12 @@ func readBytes(reader io.Reader, timeout time.Duration, asString bool) ([]byte, 
 		}
 	}
 
+	str := common.PrintBytes(buf.Bytes())
 	if asString {
-		common.Info("read %d bytes: %s", buf.Len(), convert(string(buf.Bytes())))
-	} else {
-		common.Info("read %d bytes: %+q", buf.Len(), buf.Bytes())
+		str = convertLF(str)
 	}
+
+	common.Info("read %d bytes: %s", buf.Len(), str)
 
 	return buf.Bytes(), nil
 }
@@ -104,11 +105,13 @@ func writeBytes(writer io.Writer, txt string, asString bool) error {
 	}
 
 	common.Info("--------------------")
+
+	str := common.PrintBytes([]byte(txt))
 	if asString {
-		common.Info("writeBytes %d bytes: %s", len(txt), convert(txt))
-	} else {
-		common.Info("writeBytes %d bytes: %+q", len(txt), txt)
+		str = convertLF(str)
 	}
+
+	common.Info("write %d bytes: %s", len(txt), str)
 
 	_, err := writer.Write([]byte(txt))
 	if common.DebugError(err) {
@@ -119,7 +122,7 @@ func writeBytes(writer io.Writer, txt string, asString bool) error {
 }
 
 func bufferError(expected, received []byte) error {
-	return fmt.Errorf("expected %+q but received %+q", expected, received)
+	return fmt.Errorf("expected %s but received %s", common.PrintBytes(expected), common.PrintBytes(received))
 }
 
 func process(conn common.EndpointConnection) error {

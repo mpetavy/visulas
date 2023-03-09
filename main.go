@@ -118,7 +118,7 @@ func process(conn common.EndpointConnection) error {
 	if *client != "" {
 		common.Error(writeBytes(conn, forum_ready, false))
 
-		ba, err := readBytes(conn, common.MillisecondToDuration(*readTimeout), false)
+		ba, err := readBytes(conn, common.MillisecondToDuration(*readTimeout), true)
 		if common.Error(err) {
 			return err
 		}
@@ -174,7 +174,7 @@ func process(conn common.EndpointConnection) error {
 
 		common.Error(writeBytes(conn, visulas_ready, false))
 
-		ba, err = readBytes(conn, common.MillisecondToDuration(*readTimeout), false)
+		ba, err = readBytes(conn, common.MillisecondToDuration(*readTimeout), true)
 		if common.Error(err) {
 			return err
 		}
@@ -225,7 +225,8 @@ func instance(address string) error {
 			common.Info("--------------------")
 			common.Info("Press RETURN to get ready...")
 			reader := bufio.NewReader(os.Stdin)
-			reader.ReadString('\n')
+			_, err := reader.ReadString('\n')
+			common.DebugError(err)
 
 		}
 

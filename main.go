@@ -16,17 +16,17 @@ import (
 )
 
 var (
-	filename    *string
-	client      *string
-	server      *string
-	readTimeout *int
-	stepTimeout *int
-	loopTimeout *int
-	loopCount   *int
-	useTls      *bool
-	useKey      *bool
-	scale       *int
-	tlsConfig   *tls.Config
+	filename     *string
+	client       *string
+	server       *string
+	readTimeout  *int
+	pacerTimeout *int
+	loopTimeout  *int
+	loopCount    *int
+	useTls       *bool
+	useKey       *bool
+	scale        *int
+	tlsConfig    *tls.Config
 )
 
 const (
@@ -38,7 +38,7 @@ func init() {
 	client = flag.String("c", "", "client socket address to read from")
 	server = flag.String("s", "", "server socket address to listen to")
 	readTimeout = flag.Int("rt", 3000, "read timeout")
-	stepTimeout = flag.Int("st", 500, "pacer timeout")
+	pacerTimeout = flag.Int("st", 0, "pacer timeout")
 	loopTimeout = flag.Int("lt", 0, "loop timeout")
 	loopCount = flag.Int("lc", 1, "loop count")
 	useTls = flag.Bool("tls", false, "use tls")
@@ -90,8 +90,8 @@ func readBytes(reader io.Reader, timeout time.Duration, asString bool) ([]byte, 
 }
 
 func writeBytes(writer io.Writer, txt string, asString bool) error {
-	if *stepTimeout > 0 {
-		common.Sleep(common.MillisecondToDuration(*stepTimeout))
+	if *pacerTimeout > 0 {
+		common.Sleep(common.MillisecondToDuration(*pacerTimeout))
 	}
 
 	common.Info("--------------------")

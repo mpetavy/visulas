@@ -55,7 +55,7 @@ const (
 )
 
 func init() {
-	common.Init("visulas", "1.3.0", "", "", "2019", "Emulation tool", "mpetavy", fmt.Sprintf("https://github.com/mpetavy/%s", common.Title()), common.APACHE, nil, nil, nil, run, 0)
+	common.Init("visulas", "", "", "", "2019", "Emulation tool", "mpetavy", fmt.Sprintf("https://github.com/mpetavy/%s", common.Title()), common.APACHE, nil, nil, nil, run, 0)
 }
 
 func readBytes(reader io.Reader, timeout time.Duration, asString bool) ([]byte, error) {

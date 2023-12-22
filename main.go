@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/tls"
+	"embed"
 	"encoding/base64"
 	"flag"
 	"fmt"
@@ -54,8 +55,11 @@ const (
 	review_ready = "A\rREVIEW_READY\r\x04"
 )
 
+//go:embed go.mod
+var resources embed.FS
+
 func init() {
-	common.Init("visulas", "", "", "", "2019", "Emulation tool", "mpetavy", fmt.Sprintf("https://github.com/mpetavy/%s", common.Title()), common.APACHE, nil, nil, nil, run, 0)
+	common.Init("", "", "", "", "Emulation tool", "", "", "", &resources, nil, nil, run, 0)
 }
 
 func readBytes(reader io.Reader, timeout time.Duration, asString bool) ([]byte, error) {
